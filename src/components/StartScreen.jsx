@@ -18,7 +18,11 @@ export default function StartScreen({ onStart }) {
 
       <div className="mb-4">
         <label className="block font-semibold mb-1">Modalità:</label>
-        <select className="w-full p-2 border rounded" value={mode} onChange={(e) => setMode(e.target.value)}>
+        <select
+          className="w-full p-2 border rounded"
+          value={mode}
+          onChange={(e) => setMode(e.target.value)}
+        >
           <option value="random">📌 Domande random</option>
           <option value="interval">🔢 Intervallo personalizzato</option>
           <option value="review">📘 Solo da ripassare</option>
@@ -47,9 +51,15 @@ export default function StartScreen({ onStart }) {
       {mode === 'random' && (
         <div className="mb-4">
           <label className="block font-semibold mb-1">Numero di domande:</label>
-          <select className="w-full p-2 border rounded" value={count} onChange={(e) => setCount(Number(e.target.value))}>
+          <select
+            className="w-full p-2 border rounded"
+            value={count}
+            onChange={(e) => setCount(Number(e.target.value))}
+          >
             {Array.from({ length: 88 }, (_, i) => (i + 1) * 10).map((n) => (
-              <option key={n} value={n}>{n}</option>
+              <option key={n} value={n}>
+                {n}
+              </option>
             ))}
           </select>
         </div>
@@ -58,9 +68,15 @@ export default function StartScreen({ onStart }) {
       {mode === 'review' && (
         <div className="mb-4">
           <label className="block font-semibold mb-1">Quante domande da ripassare vuoi fare?</label>
-          <select className="w-full p-2 border rounded" value={count} onChange={(e) => setCount(Number(e.target.value))}>
+          <select
+            className="w-full p-2 border rounded"
+            value={count}
+            onChange={(e) => setCount(Number(e.target.value))}
+          >
             {Array.from({ length: 30 }, (_, i) => (i + 1) * 10).map((n) => (
-              <option key={n} value={n}>{n}</option>
+              <option key={n} value={n}>
+                {n}
+              </option>
             ))}
           </select>
         </div>
@@ -68,9 +84,15 @@ export default function StartScreen({ onStart }) {
 
       <div className="mb-4">
         <label className="block font-semibold mb-1">Timer (minuti):</label>
-        <select className="w-full p-2 border rounded" value={timer} onChange={(e) => setTimer(Number(e.target.value))}>
-          {[...Array(10)].map((_, i) => (
-            <option key={i} value={(i + 1) * 10}>{(i + 1) * 10} min</option>
+        <select
+          className="w-full p-2 border rounded"
+          value={timer}
+          onChange={(e) => setTimer(Number(e.target.value))}
+        >
+          {Array.from({ length: 10 }, (_, i) => (i + 1) * 10).map((n) => (
+            <option key={n} value={n}>
+              {n} min
+            </option>
           ))}
         </select>
       </div>
