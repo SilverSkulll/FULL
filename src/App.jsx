@@ -1,241 +1,164 @@
-
 import React, { useEffect, useState } from 'react';
 import Papa from 'papaparse';
-import './style.css';
+import StartScreen from './components/StartScreen';
 
-function App() {
-  const [allQuestions, setAllQuestions] = useState([]);
-  const [selectedQuestions, setSelectedQuestions] = useState([]);
-  const [answers, setAnswers] = useState([]);
-  const [step, setStep] = useState(0);
-  const [showResult, setShowResult] = useState(false);
-  const [reviewMode, setReviewMode] = useState(false);
-  const [numQuestions, setNumQuestions] = useState(10);
-  const [timeLimit, setTimeLimit] = useState(10);
+function shuffle(array) {
+  return array.map(a => [Math.random(), a]).sort().map(a => a[1]);
+}
+
+export default function App() {
+  const [quizData, setQuizData] = useState([]);
+  const [selectedAnswers, setSelectedAnswers] = useState({});
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [showResults, setShowResults] = useState(false);
+  const [reviewList, setReviewList] = useState(() => {
+    const saved = localStorage.getItem('reviewList');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [settings, setSettings] = useState(null);
   const [timer, setTimer] = useState(0);
-  const [started, setStarted] = useState(false);
-  const [orderMode, setOrderMode] = useState("random");
-  const [startIndex, setStartIndex] = useState(1);
-  const [endIndex, setEndIndex] = useState(10);
-  const [repeatOnly, setRepeatOnly] = useState(false);
 
   useEffect(() => {
-    fetch('/quiz_domande_200.csv')
-      .then(res => res.text())
-      .then(csv => {
-        Papa.parse(csv, {
-          header: true,
-          complete: results => {
-            const clean = results.data.filter(q => q.Numero && q.Domanda && q.A && q.B && q.C && q.Corretta);
-            setAllQuestions(clean);
+    if (timer > 0) {
+      const countdown = setInterval(() => {
+        setTimer(t => {
+          if (t <= 1) {
+            clearInterval(countdown);
+            setShowResults(true);
+            return 0;
           }
+          return t - 1;
         });
-      });
-  }, []);
-
-  useEffect(() => {
-    if (started && timer > 0 && !showResult) {
-      const countdown = setInterval(() => setTimer(t => t - 1), 1000);
+      }, 1000);
       return () => clearInterval(countdown);
     }
-    if (timer === 0 && started && !showResult) {
-      handleFinish();
-    }
-  }, [timer, started, showResult]);
+  }, [timer]);
 
-  const getRepeatQuestions = () => {
-    const stored = localStorage.getItem("toRepeat");
-    if (!stored) return [];
-    const parsed = JSON.parse(stored);
-    return allQuestions.filter(q => parsed.includes(q.Numero));
-  };
+  const startQuiz = (config) => {
+    fetch('/quiz_domande_320.csv')
+      .then(res => res.text())
+      .then(csv => {
+        const all = Papa.parse(csv, { header: true }).data.filter(r => r.Numero && r.Domanda && r.A && r.B && r.C);
+        let selected = [];
 
-  const startQuiz = () => {
-    let questions = [];
-    if (repeatOnly) {
-      const repeats = getRepeatQuestions();
-      questions = repeats.sort(() => 0.5 - Math.random()).slice(0, numQuestions);
-    } else if (orderMode === "random") {
-      questions = [...allQuestions].sort(() => 0.5 - Math.random()).slice(0, numQuestions);
-    } else {
-      questions = allQuestions.filter(q => {
-        const n = parseInt(q.Numero);
-        return n >= startIndex && n <= endIndex;
+        if (config.mode === 'random') {
+          selected = shuffle(all).slice(0, config.count);
+        } else if (config.mode === 'interval') {
+          selected = all.filter(q => {
+            const n = parseInt(q.Numero, 10);
+            return n >= config.start && n <= config.end;
+          }).slice(0, config.count);
+        } else if (config.mode === 'review') {
+          selected = all.filter(q => reviewList.includes(parseInt(q.Numero, 10)));
+        }
+
+        setQuizData(selected);
+        setSelectedAnswers({});
+        setCurrentIndex(0);
+        setShowResults(false);
+        setSettings(config);
+        setTimer(config.timer * 60);
       });
-    }
-
-    setSelectedQuestions(questions);
-    setAnswers(Array(questions.length).fill(null));
-    setStep(0);
-    setTimer(timeLimit * 60);
-    setStarted(true);
-    setShowResult(false);
-    setReviewMode(false);
   };
 
   const handleAnswer = (letter) => {
-    const updated = [...answers];
-    updated[step] = letter;
-    setAnswers(updated);
+    setSelectedAnswers({ ...selectedAnswers, [currentIndex]: letter });
   };
 
-  const handleFinish = () => {
-    setShowResult(true);
-  };
-
-  const handleRepeatFlag = (numero) => {
-    const current = JSON.parse(localStorage.getItem("toRepeat") || "[]");
-    if (!current.includes(numero)) {
-      current.push(numero);
-      localStorage.setItem("toRepeat", JSON.stringify(current));
+  const toggleReview = (num) => {
+    let updated = [...reviewList];
+    if (updated.includes(num)) {
+      updated = updated.filter(n => n !== num);
+    } else {
+      updated.push(num);
     }
+    setReviewList(updated);
+    localStorage.setItem('reviewList', JSON.stringify(updated));
   };
 
-  const resetQuiz = () => {
-    setStarted(false);
-    setRepeatOnly(false);
-    setStep(0);
-    setAnswers([]);
-    setSelectedQuestions([]);
-    setShowResult(false);
-    setReviewMode(false);
-  };
-
-  if (!started) {
-    const hasRepeat = getRepeatQuestions().length > 0;
-
-    return (
-      <div className="container">
-        <div className="card">
-          <h1>QUIZ 20^ CORSO V. ISP.</h1>
-          <label>Numero domande:
-            <select value={numQuestions} onChange={(e) => setNumQuestions(Number(e.target.value))}>
-              {[...Array(30)].map((_, i) => (
-                <option key={i} value={(i + 1) * 10}>{(i + 1) * 10}</option>
-              ))}
-            </select>
-          </label>
-          <br /><br />
-          <label>Timer (minuti):
-            <select value={timeLimit} onChange={(e) => setTimeLimit(Number(e.target.value))}>
-              {[...Array(10)].map((_, i) => (
-                <option key={i} value={(i + 1) * 10}>{(i + 1) * 10}</option>
-              ))}
-            </select>
-          </label>
-          <br /><br />
-          <label>Ordine domande:
-            <select value={orderMode} onChange={(e) => setOrderMode(e.target.value)}>
-              <option value="random">Casuale</option>
-              <option value="range">Intervallo</option>
-            </select>
-          </label>
-          {orderMode === "range" && (
-            <div>
-              <input type="number" placeholder="Da..." value={startIndex} onChange={(e) => setStartIndex(Number(e.target.value))} />
-              <input type="number" placeholder="A..." value={endIndex} onChange={(e) => setEndIndex(Number(e.target.value))} />
-            </div>
-          )}
-          {hasRepeat && (
-            <div>
-              <label>
-                <input type="checkbox" checked={repeatOnly} onChange={(e) => setRepeatOnly(e.target.checked)} />
-                Solo domande da ripassare
-              </label>
-            </div>
-          )}
-          <br />
-          <button onClick={startQuiz}>Inizia il test</button>
-        </div>
-      </div>
-    );
+  if (!settings) {
+    return <StartScreen onStart={startQuiz} />;
   }
 
-  if (showResult && reviewMode) {
+  if (showResults || currentIndex >= quizData.length) {
     return (
-      <div className="container">
-        <h2>📘 RIVEDI IL TEST</h2>
-        {selectedQuestions.map((q, i) => {
-          const userAnswer = answers[i];
-          const correct = q.Corretta.trim().toUpperCase();
+      <div className="p-6 max-w-4xl mx-auto">
+        <h2 className="text-2xl font-bold mb-4 text-center">📘 Riepilogo del test</h2>
+        {quizData.map((q, i) => {
+          const corr = q.Corretta;
+          const user = selectedAnswers[i];
+          const isCorrect = user === corr;
           return (
-            <div key={i} className="card">
-              <p><strong>{q.Numero}. {q.Domanda}</strong></p>
-              {['A', 'B', 'C'].map((opt) => (
-                <p
-                  key={opt}
-                  className={
-                    userAnswer === opt && opt !== correct ? 'wrong' :
-                    opt === correct ? 'correct' : ''
-                  }
-                >
-                  {opt}) {q[opt]}
-                </p>
-              ))}
-              <label>
-                <input type="checkbox"
-                       checked={JSON.parse(localStorage.getItem("toRepeat") || "[]").includes(q.Numero)}
-                       onChange={(e) => {
-                         const current = JSON.parse(localStorage.getItem("toRepeat") || "[]");
-                         const updated = e.target.checked
-                           ? [...new Set([...current, q.Numero])]
-                           : current.filter(n => n !== q.Numero);
-                         localStorage.setItem("toRepeat", JSON.stringify(updated));
-                       }} />
-                🔖 Domanda da ripassare
+            <div key={i} className="mb-4 p-6 rounded-xl border bg-white shadow-md">
+              <p className="font-semibold mb-2">{q.Numero}. {q.Domanda}</p>
+              <p>✅ Corretta: {q[corr]}</p>
+              <p className={!isCorrect ? 'text-red-600' : 'text-green-600'}>
+                {isCorrect ? 'Risposta esatta' : `❌ Hai risposto: ${q[user] || '-'}`}
+              </p>
+              <label className="block mt-2">
+                <input type="checkbox" checked={reviewList.includes(parseInt(q.Numero, 10))} onChange={() => toggleReview(parseInt(q.Numero, 10))} />
+                {' '}Segna come da ripassare
               </label>
             </div>
           );
         })}
-        <br />
-        <button onClick={resetQuiz}>🔁 Ricomincia il test</button>
+        <div className="text-center">
+          <button onClick={() => setSettings(null)} className="mt-6 px-6 py-3 bg-blue-600 text-white rounded-xl shadow">🔁 Torna alla schermata iniziale</button>
+        </div>
       </div>
     );
   }
 
-  if (showResult && !reviewMode) {
-    const correctCount = selectedQuestions.filter((q, i) => q.Corretta.trim().toUpperCase() === answers[i]).length;
-    return (
-      <div className="container">
-        <h2>Test completato!</h2>
-        <p>Hai risposto correttamente a {correctCount} su {selectedQuestions.length} domande.</p>
-        <p>Percentuale: {Math.round((correctCount / selectedQuestions.length) * 100)}%</p>
-        <button onClick={() => setReviewMode(true)}>📘 RIVEDI IL TEST</button>
-      </div>
-    );
-  }
-
-  const current = selectedQuestions[step];
-  const userAnswer = answers[step];
+  const q = quizData[currentIndex];
+  const sel = selectedAnswers[currentIndex];
+  const correct = q.Corretta;
 
   return (
-    <div className="container">
-      <div className="card">
-        <p><strong>{current.Numero}. {current.Domanda}</strong></p>
-        {['A', 'B', 'C'].map((opt) => (
-          <div
-            key={opt}
-            className={userAnswer === opt ? 'answer selected card' : 'answer card'}
-            onClick={() => {
-              if (!showResult) handleAnswer(opt)
-          }}
-            style={{ cursor: 'pointer' }}
-          >
-            {opt}) {current[opt]}
-          </div>
-        ))}
-        <div className="navigation">
-          <button disabled={step === 0} onClick={() => setStep(step - 1)}>⬅️ Indietro</button>
-          {step < selectedQuestions.length - 1 ? (
-            <button onClick={() => setStep(step + 1)}>➡️ Avanti</button>
-          ) : (
-            <button onClick={handleFinish}>✅ RISULTATI</button>
-          )}
-        </div>
-        <p>⏱️ Tempo rimasto: {Math.floor(timer / 60)}:{('0' + (timer % 60)).slice(-2)}</p>
+    <div className="p-6 max-w-3xl mx-auto min-h-screen flex flex-col items-center justify-center">
+      <div className="w-full mb-4 text-center">
+        <h2 className="text-2xl font-bold mb-2">Domanda {currentIndex + 1} / {quizData.length}</h2>
+        <div className="text-red-600 font-semibold text-lg">⏱ {Math.floor(timer / 60)}:{String(timer % 60).padStart(2, '0')}</div>
+      </div>
+      <div className="bg-white w-full p-6 rounded-xl shadow-lg mb-6 text-center">
+        <p className="text-lg font-semibold mb-6">{q.Numero}. {q.Domanda}</p>
+        {['A', 'B', 'C'].map(opt => {
+          const base = "w-full mb-3 px-6 py-4 rounded-xl text-left border text-lg font-medium cursor-pointer ";
+          const isSelected = sel === opt;
+          const isCorrect = opt === correct;
+          const className =
+            isSelected && isCorrect ? base + "bg-green-400 text-white" :
+            isSelected && !isCorrect ? base + "bg-red-400 text-white" :
+            sel && isCorrect ? base + "bg-green-100" :
+            base + "bg-gray-100 hover:bg-gray-200";
+
+          return (
+            <div
+              key={opt}
+              role="button"
+              tabIndex={0}
+              onClick={() => handleAnswer(opt)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAnswer(opt)}
+              className={className}
+            >
+              {opt}) {q[opt]}
+            </div>
+          );
+        })}
+      </div>
+      <div className="w-full flex justify-between">
+        <button onClick={() => setCurrentIndex(currentIndex - 1)} disabled={currentIndex === 0} className="px-6 py-3 bg-gray-400 text-white rounded-xl shadow disabled:opacity-50">
+          ◀ Indietro
+        </button>
+        {currentIndex < quizData.length - 1 ? (
+          <button onClick={() => setCurrentIndex(currentIndex + 1)} className="px-6 py-3 bg-blue-600 text-white rounded-xl shadow">
+            Avanti ▶
+          </button>
+        ) : (
+          <button onClick={() => setShowResults(true)} className="px-6 py-3 bg-green-600 text-white rounded-xl shadow">
+            ✅ Concludi
+          </button>
+        )}
       </div>
     </div>
   );
 }
-
-export default App;
