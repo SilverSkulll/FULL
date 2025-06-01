@@ -44,18 +44,16 @@ export default function StartScreen({ onStart }) {
 
       
       {mode === 'review' && (
-        <>
-          <div className="mb-4">
-            <label className="block font-semibold mb-1">Quante domande da ripassare vuoi fare?</label>
-            <select className="w-full p-2 border rounded" value={count} onChange={(e) => setCount(Number(e.target.value))}>
-              {Array.from({ length: 30 }, (_, i) => (i + 1) * 10).map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-        </>
+        <div className="mb-4">
+          <label className="block font-semibold mb-1">Quante domande da ripassare vuoi fare?</label>
+          <select className="w-full p-2 border rounded" value={count} onChange={(e) => setCount(Number(e.target.value))}>
+            {Array.from({ length: 30 }, (_, i) => (i + 1) * 10).map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </div>
       )}
 
 
