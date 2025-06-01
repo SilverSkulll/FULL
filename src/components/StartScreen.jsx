@@ -41,13 +41,12 @@ export default function StartScreen({ onStart }) {
             placeholder="A domanda n°"
           />
         </div>
-      )}
 
-      {mode !== 'review' && (
+      {mode === 'review' && (
         <div className="mb-4">
-          <label className="block font-semibold mb-1">Numero di domande:</label>
+          <label className="block font-semibold mb-1">Quante domande da ripassare vuoi fare?</label>
           <select className="w-full p-2 border rounded" value={count} onChange={(e) => setCount(Number(e.target.value))}>
-            {Array.from({ length: 88 }, (_, i) => (i + 1) * 10).map((n) => (
+            {Array.from({ length: 30 }, (_, i) => (i + 1) * 10).map((n) => (
               <option key={n} value={n}>
                 {n}
               </option>
@@ -55,6 +54,11 @@ export default function StartScreen({ onStart }) {
           </select>
         </div>
       )}
+
+        </div>
+      )}
+
+      
 
       <div className="mb-4">
         <label className="block font-semibold mb-1">Timer (minuti):</label>
